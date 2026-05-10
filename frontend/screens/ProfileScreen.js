@@ -1,0 +1,135 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { getMyReservations, cancelReservation, logout } from '../services/api';
+
+export default function ProfileScreen({ user, onLogout }) {
+  const [reservations, setReservations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [confirmId, setConfirmId] = useState(null);
+
+  const fetchReservations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getMyReservations();
+      setReservations(data);
+    } catch (err) {
+      Alert.alert('Σφάλμα', err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchReservations(); }, [fetchReservations]);
+
+  async function handleCancel(id) {
+    try {
+      await cancelReservation(id);
+      setConfirmId(null);
+      fetchReservations();
+    } catch (err) {
+      setConfirmId(null);
+      Alert.alert('Σφάλμα', err.message);
+    }
+  }
+
+  async function handleLogout() {
+    await logout();
+    onLogout();
+  }
+
+  function formatDate(dt) {
+    return new Date(dt).toLocaleString('el-GR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  const renderItem = ({ item }) => {
+    const isFuture = new Date(item.datetime) > new Date();
+    return (
+      <View style={[styles.card, item.status === 'cancelled' && styles.cardCancelled]}>
+        <Text style={styles.showTitle}>{item.show_title}</Text>
+        <Text style={styles.info}>🏛 {item.theatre_name}</Text>
+        <Text style={styles.info}>📅 {formatDate(item.datetime)}</Text>
+        <Text style={styles.info}>💺 {item.seats || '—'}</Text>
+        <Text style={styles.info}>💶 €{parseFloat(item.price).toFixed(2)} / θέση</Text>
+        <View style={styles.statusRow}>
+          <View style={[styles.badge, item.status === 'cancelled' ? styles.badgeCancelled : styles.badgeConfirmed]}>
+            <Text style={styles.badgeText}>{item.status === 'confirmed' ? 'Επιβεβαιωμένη' : 'Ακυρωμένη'}</Text>
+          </View>
+          {item.status === 'confirmed' && isFuture && confirmId !== item.reservation_id && (
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmId(item.reservation_id)}>
+              <Text style={styles.cancelBtnText}>Ακύρωση</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {confirmId === item.reservation_id && (
+          <View style={styles.confirmRow}>
+            <Text style={styles.confirmText}>Είσαι σίγουρος;</Text>
+            <TouchableOpacity style={styles.confirmYes} onPress={() => handleCancel(item.reservation_id)}>
+              <Text style={styles.confirmYesText}>Ναι, ακύρωση</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.confirmNo} onPress={() => setConfirmId(null)}>
+              <Text style={styles.confirmNoText}>Όχι</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.profileHeader}>
+        <View>
+          <Text style={styles.userName}>{user?.name}</Text>
+          <Text style={styles.userEmail}>{user?.email}</Text>
+        </View>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Αποσύνδεση</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionTitle}>Κρατήσεις μου</Text>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#1a237e" style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={reservations}
+          keyExtractor={item => String(item.reservation_id)}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<Text style={styles.empty}>Δεν έχεις κρατήσεις ακόμα.</Text>}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 16 },
+  profileHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1a237e', borderRadius: 14, padding: 16, marginBottom: 20 },
+  userName: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  userEmail: { fontSize: 13, color: '#c5cae9', marginTop: 2 },
+  logoutBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
+  logoutText: { color: '#fff', fontWeight: '600' },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1a237e', marginBottom: 12 },
+  list: { paddingBottom: 20 },
+  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3 },
+  cardCancelled: { opacity: 0.55 },
+  showTitle: { fontSize: 16, fontWeight: 'bold', color: '#1a237e', marginBottom: 6 },
+  info: { fontSize: 13, color: '#5f6368', marginBottom: 3 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  badge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeConfirmed: { backgroundColor: '#e8f5e9' },
+  badgeCancelled: { backgroundColor: '#fce4ec' },
+  badgeText: { fontSize: 12, fontWeight: '600', color: '#333' },
+  cancelBtn: { backgroundColor: '#fce4ec', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  cancelBtnText: { color: '#c62828', fontWeight: '600', fontSize: 13 },
+  confirmRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
+  confirmText: { fontSize: 13, color: '#333', flex: 1 },
+  confirmYes: { backgroundColor: '#c62828', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  confirmYesText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  confirmNo: { backgroundColor: '#e0e0e0', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  confirmNoText: { color: '#333', fontWeight: '600', fontSize: 13 },
+  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#9e9e9e' },
+});
