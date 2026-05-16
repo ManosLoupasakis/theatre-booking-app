@@ -77,7 +77,7 @@ export default function SeatsScreen({ route, navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1a237e" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#0d1f3c" style={{ marginTop: 40 }} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
           <Text style={styles.stageLabel}>— ΣΚΗΝΗ —</Text>
@@ -92,12 +92,12 @@ export default function SeatsScreen({ route, navigation }) {
                     key={seat.seat_id}
                     style={[
                       styles.seat,
-                      { backgroundColor: isReserved ? '#ccc' : isSelected ? '#1a237e' : CATEGORY_COLOR[seat.category] },
+                      { backgroundColor: isReserved ? '#ccc' : isSelected ? '#0d1f3c' : CATEGORY_COLOR[seat.category] },
                     ]}
                     onPress={() => toggleSeat(seat)}
                     disabled={isReserved}
                   >
-                    <Text style={[styles.seatText, isSelected && { color: '#fff' }]}>{seat.seat_number}</Text>
+                    <Text style={[styles.seatText, isSelected && { color: '#1a1a2e' }]}>{seat.seat_number}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -123,22 +123,22 @@ export default function SeatsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 16 },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#1a237e' },
-  subtitle: { fontSize: 13, color: '#5c6bc0', marginBottom: 12 },
+  container: { flex: 1, backgroundColor: '#0d1f3c', padding: 16 },
+  title: { fontSize: 18, fontWeight: 'bold', color: '#0d1f3c' },
+  subtitle: { fontSize: 13, color: '#b8a8ff', marginBottom: 12 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12, gap: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 14, height: 14, borderRadius: 4 },
-  legendText: { fontSize: 12, color: '#5f6368' },
-  stageLabel: { textAlign: 'center', color: '#9e9e9e', marginBottom: 16, fontWeight: '600', letterSpacing: 2 },
+  legendText: { fontSize: 12, color: '#c5c5c5' },
+  stageLabel: { textAlign: 'center', color: '#666', marginBottom: 16, fontWeight: '600', letterSpacing: 2 },
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'center' },
-  rowLabel: { width: 24, fontWeight: 'bold', color: '#5c6bc0', marginRight: 6 },
+  rowLabel: { width: 24, fontWeight: 'bold', color: '#b8a8ff', marginRight: 6 },
   seat: { width: 36, height: 36, borderRadius: 6, margin: 3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#bbb' },
   seatText: { fontSize: 12, fontWeight: '600', color: '#333' },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderColor: '#e0e0e0', marginTop: 8 },
   footerText: { fontSize: 16, color: '#333' },
   priceText: { fontWeight: 'bold', color: '#2e7d32' },
-  bookBtn: { backgroundColor: '#1a237e', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
+  bookBtn: { backgroundColor: '#0d1f3c', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
   bookBtnDisabled: { backgroundColor: '#9fa8da' },
-  bookBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  bookBtnText: { color: '#1a1a2e', fontWeight: 'bold', fontSize: 16 },
 });

@@ -20,9 +20,9 @@ const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
 const NAV_THEME = {
-  headerStyle:      { backgroundColor: '#1a237e' },
-  headerTintColor:  '#fff',
-  headerTitleStyle: { fontWeight: 'bold' },
+  headerStyle:      { backgroundColor: '#0d1f3c' },
+  headerTintColor:  '#ffd700',
+  headerTitleStyle: { fontWeight: 'bold', color: '#ffd700' },
 };
 
 // Stack navigator για το tab "Θέατρα"
@@ -42,8 +42,9 @@ function MainTabs({ user, onLogout }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarActiveTintColor: '#1a237e',
-        tabBarInactiveTintColor: '#9e9e9e',
+        tabBarActiveTintColor: '#ffd700',
+        tabBarInactiveTintColor: '#666',
+        tabBarStyle: { backgroundColor: '#0d1f3c', borderTopColor: '#ffd700', borderTopWidth: 1 },
         tabBarIcon: ({ color }) => {
           const icons = { Theatres: '🎭', Profile: '👤' };
           return <Text style={{ fontSize: 20 }}>{icons[route.name]}</Text>;
@@ -93,8 +94,8 @@ export default function App() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a237e' }}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1f3c' }}>
+        <ActivityIndicator size="large" color="#ffd700" />
       </View>
     );
   }

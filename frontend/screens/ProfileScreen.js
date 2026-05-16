@@ -90,7 +90,7 @@ export default function ProfileScreen({ user, onLogout }) {
       <Text style={styles.sectionTitle}>Κρατήσεις μου</Text>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1a237e" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={reservations}
@@ -106,30 +106,30 @@ export default function ProfileScreen({ user, onLogout }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 16 },
-  profileHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1a237e', borderRadius: 14, padding: 16, marginBottom: 20 },
-  userName: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-  userEmail: { fontSize: 13, color: '#c5cae9', marginTop: 2 },
-  logoutBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
-  logoutText: { color: '#fff', fontWeight: '600' },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1a237e', marginBottom: 12 },
+  container: { flex: 1, backgroundColor: '#0d1f3c', padding: 16 },
+  profileHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1a1a2e', borderRadius: 14, padding: 16, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#ffd700' },
+  userName: { fontSize: 18, fontWeight: 'bold', color: '#ffd700' },
+  userEmail: { fontSize: 13, color: '#b8a8ff', marginTop: 2 },
+  logoutBtn: { backgroundColor: '#ffd700', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
+  logoutText: { color: '#0d1f3c', fontWeight: '600' },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#ffd700', marginBottom: 12 },
   list: { paddingBottom: 20 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3 },
+  card: { backgroundColor: '#1a1a2e', borderRadius: 14, padding: 16, marginBottom: 12, elevation: 2, shadowColor: '#ffd700', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3 },
   cardCancelled: { opacity: 0.55 },
-  showTitle: { fontSize: 16, fontWeight: 'bold', color: '#1a237e', marginBottom: 6 },
-  info: { fontSize: 13, color: '#5f6368', marginBottom: 3 },
+  showTitle: { fontSize: 16, fontWeight: 'bold', color: '#ffd700', marginBottom: 6 },
+  info: { fontSize: 13, color: '#c5c5c5', marginBottom: 3 },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
   badge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeConfirmed: { backgroundColor: '#e8f5e9' },
-  badgeCancelled: { backgroundColor: '#fce4ec' },
-  badgeText: { fontSize: 12, fontWeight: '600', color: '#333' },
-  cancelBtn: { backgroundColor: '#fce4ec', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  cancelBtnText: { color: '#c62828', fontWeight: '600', fontSize: 13 },
+  badgeConfirmed: { backgroundColor: '#2d5016' },
+  badgeCancelled: { backgroundColor: '#5d2e3d' },
+  badgeText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  cancelBtn: { backgroundColor: '#5d2e3d', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  cancelBtnText: { color: '#ff8a8a', fontWeight: '600', fontSize: 13 },
   confirmRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
-  confirmText: { fontSize: 13, color: '#333', flex: 1 },
+  confirmText: { fontSize: 13, color: '#c5c5c5', flex: 1 },
   confirmYes: { backgroundColor: '#c62828', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   confirmYesText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  confirmNo: { backgroundColor: '#e0e0e0', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  confirmNoText: { color: '#333', fontWeight: '600', fontSize: 13 },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#9e9e9e' },
+  confirmNo: { backgroundColor: '#444', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  confirmNoText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#666' },
 });

@@ -42,7 +42,7 @@ export default function ShowtimesScreen({ route, navigation }) {
       <Text style={styles.title}>{show.title}</Text>
       <Text style={styles.subtitle}>Διαθέσιμες Ώρες</Text>
       {loading ? (
-        <ActivityIndicator size="large" color="#1a237e" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#0d1f3c" style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={showtimes}
@@ -57,15 +57,15 @@ export default function ShowtimesScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 16 },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#1a237e', marginBottom: 4 },
-  subtitle: { fontSize: 15, color: '#5c6bc0', marginBottom: 16 },
+  container: { flex: 1, backgroundColor: '#0d1f3c', padding: 16 },
+  title: { fontSize: 20, fontWeight: 'bold', color: '#0d1f3c', marginBottom: 4 },
+  subtitle: { fontSize: 15, color: '#b8a8ff', marginBottom: 16 },
   list: { paddingBottom: 20 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  card: { backgroundColor: '#1a1a2e', borderRadius: 14, padding: 16, marginBottom: 12, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   datetime: { fontSize: 16, fontWeight: '600', color: '#202124' },
   price: { fontSize: 18, fontWeight: 'bold', color: '#2e7d32' },
-  hall: { fontSize: 14, color: '#5f6368', marginBottom: 10 },
-  link: { color: '#1a237e', fontWeight: 'bold', fontSize: 14 },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#9e9e9e' },
+  hall: { fontSize: 14, color: '#c5c5c5', marginBottom: 10 },
+  link: { color: '#0d1f3c', fontWeight: 'bold', fontSize: 14 },
+  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#666' },
 });

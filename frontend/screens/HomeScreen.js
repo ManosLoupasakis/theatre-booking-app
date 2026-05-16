@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image, ScrollView } from 'react-native';
 import { getTheatres } from '../services/api';
 
 export default function HomeScreen({ navigation }) {
@@ -34,6 +34,12 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <Image
+        source={{ uri: 'https://www.newsit.gr/wp-content/uploads/2020/10/THEATRO_PEIRAIA-scaled.jpg' }}
+        style={styles.headerImage}
+      />
+      <View style={styles.headerOverlay} />
+
       <TextInput
         style={styles.searchInput}
         placeholder="Αναζήτηση θεάτρου ή τοποθεσίας..."
@@ -41,7 +47,7 @@ export default function HomeScreen({ navigation }) {
         onChangeText={setSearch}
       />
       {loading ? (
-        <ActivityIndicator size="large" color="#1a237e" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={theatres}
@@ -57,14 +63,16 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 16 },
-  searchInput: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 14, fontSize: 16, borderWidth: 1, borderColor: '#c5cae9' },
-  list: { paddingBottom: 20 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 14, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  container: { flex: 1, backgroundColor: '#0d1f3c', paddingBottom: 16 },
+  headerImage: { width: '100%', height: 200, resizeMode: 'cover' },
+  headerOverlay: { height: 80, backgroundColor: 'rgba(13, 31, 60, 0.3)', paddingHorizontal: 16 },
+  searchInput: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginHorizontal: 16, marginTop: -40, marginBottom: 16, fontSize: 16, borderWidth: 1, borderColor: '#ffd700', elevation: 5, shadowColor: '#ffd700', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6 },
+  list: { paddingHorizontal: 16, paddingBottom: 20 },
+  card: { backgroundColor: '#1a1a2e', borderRadius: 14, padding: 16, marginBottom: 14, elevation: 4, shadowColor: '#ffd700', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 5, borderLeftWidth: 4, borderLeftColor: '#ffd700' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1a237e', flex: 1 },
-  locationBadge: { fontSize: 13, color: '#5c6bc0', marginLeft: 8 },
-  cardDesc: { fontSize: 14, color: '#5f6368', marginBottom: 10, lineHeight: 20 },
-  cardLink: { color: '#1a237e', fontWeight: 'bold', fontSize: 14 },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#9e9e9e' },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#ffd700', flex: 1 },
+  locationBadge: { fontSize: 13, color: '#b8a8ff', marginLeft: 8 },
+  cardDesc: { fontSize: 14, color: '#c5c5c5', marginBottom: 10, lineHeight: 20 },
+  cardLink: { color: '#ffd700', fontWeight: 'bold', fontSize: 14 },
+  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#7a7a7a' },
 });

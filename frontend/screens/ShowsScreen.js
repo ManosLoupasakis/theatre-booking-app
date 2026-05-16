@@ -45,7 +45,7 @@ export default function ShowsScreen({ route, navigation }) {
         onChangeText={setSearch}
       />
       {loading ? (
-        <ActivityIndicator size="large" color="#1a237e" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#0d1f3c" style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={shows}
@@ -61,15 +61,15 @@ export default function ShowsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5', padding: 16 },
-  header: { fontSize: 20, fontWeight: 'bold', color: '#1a237e', marginBottom: 12 },
-  searchInput: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 14, fontSize: 16, borderWidth: 1, borderColor: '#c5cae9' },
+  container: { flex: 1, backgroundColor: '#0d1f3c', padding: 16 },
+  header: { fontSize: 20, fontWeight: 'bold', color: '#0d1f3c', marginBottom: 12 },
+  searchInput: { backgroundColor: '#1a1a2e', borderRadius: 10, padding: 14, marginBottom: 14, fontSize: 16, borderWidth: 1, borderColor: '#c5cae9' },
   list: { paddingBottom: 20 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 14, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#1a237e', marginBottom: 8 },
+  card: { backgroundColor: '#1a1a2e', borderRadius: 14, padding: 16, marginBottom: 14, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#0d1f3c', marginBottom: 8 },
   meta: { flexDirection: 'row', gap: 16, marginBottom: 8 },
-  metaText: { fontSize: 13, color: '#5c6bc0', fontWeight: '500' },
-  desc: { fontSize: 14, color: '#5f6368', lineHeight: 20, marginBottom: 10 },
-  link: { color: '#1a237e', fontWeight: 'bold', fontSize: 14 },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#9e9e9e' },
+  metaText: { fontSize: 13, color: '#b8a8ff', fontWeight: '500' },
+  desc: { fontSize: 14, color: '#c5c5c5', lineHeight: 20, marginBottom: 10 },
+  link: { color: '#0d1f3c', fontWeight: 'bold', fontSize: 14 },
+  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#666' },
 });
