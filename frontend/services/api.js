@@ -53,6 +53,10 @@ export async function login(email, password) {
   return data;
 }
 
+export function isAdmin(user) {
+  return user?.role === 'admin';
+}
+
 export async function logout() {
   await storage.deleteItem('jwt_token');
   await storage.deleteItem('user_data');
@@ -104,3 +108,30 @@ export function getMyReservations() {
 export function cancelReservation(id) {
   return authFetch(`/reservations/${id}`, { method: 'DELETE' });
 }
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────────
+
+export function adminGetStats() { return authFetch('/admin/stats'); }
+
+export function adminGetTheatres() { return authFetch('/admin/theatres'); }
+export function adminCreateTheatre(data) { return authFetch('/admin/theatres', { method: 'POST', body: JSON.stringify(data) }); }
+export function adminUpdateTheatre(id, data) { return authFetch(`/admin/theatres/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+export function adminDeleteTheatre(id) { return authFetch(`/admin/theatres/${id}`, { method: 'DELETE' }); }
+
+export function adminGetShows() { return authFetch('/admin/shows'); }
+export function adminCreateShow(data) { return authFetch('/admin/shows', { method: 'POST', body: JSON.stringify(data) }); }
+export function adminUpdateShow(id, data) { return authFetch(`/admin/shows/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+export function adminDeleteShow(id) { return authFetch(`/admin/shows/${id}`, { method: 'DELETE' }); }
+
+export function adminGetShowtimes() { return authFetch('/admin/showtimes'); }
+export function adminCreateShowtime(data) { return authFetch('/admin/showtimes', { method: 'POST', body: JSON.stringify(data) }); }
+export function adminUpdateShowtime(id, data) { return authFetch(`/admin/showtimes/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+export function adminDeleteShowtime(id) { return authFetch(`/admin/showtimes/${id}`, { method: 'DELETE' }); }
+export function adminGenerateSeats(id, data) { return authFetch(`/admin/showtimes/${id}/seats/generate`, { method: 'POST', body: JSON.stringify(data) }); }
+
+export function adminGetReservations() { return authFetch('/admin/reservations'); }
+export function adminCancelReservation(id) { return authFetch(`/admin/reservations/${id}`, { method: 'DELETE' }); }
+
+export function adminGetUsers() { return authFetch('/admin/users'); }
+export function adminUpdateUserRole(id, role) { return authFetch(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }); }
+export function adminDeleteUser(id) { return authFetch(`/admin/users/${id}`, { method: 'DELETE' }); }

@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Text } from 'react-native';
 
-import { getStoredUser } from './services/api';
+import { getStoredUser, isAdmin } from './services/api';
 
 import LoginScreen    from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
@@ -15,6 +15,13 @@ import ShowsScreen    from './screens/ShowsScreen';
 import ShowtimesScreen from './screens/ShowtimesScreen';
 import SeatsScreen    from './screens/SeatsScreen';
 import ProfileScreen  from './screens/ProfileScreen';
+
+import AdminDashboardScreen   from './screens/AdminDashboardScreen';
+import AdminTheatresScreen    from './screens/AdminTheatresScreen';
+import AdminShowsScreen       from './screens/AdminShowsScreen';
+import AdminShowtimesScreen   from './screens/AdminShowtimesScreen';
+import AdminReservationsScreen from './screens/AdminReservationsScreen';
+import AdminUsersScreen       from './screens/AdminUsersScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -37,8 +44,23 @@ function TheatresStack({ onLogout }) {
   );
 }
 
+// Admin stack navigator
+function AdminStack() {
+  return (
+    <Stack.Navigator screenOptions={NAV_THEME}>
+      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ title: 'Admin Panel' }} />
+      <Stack.Screen name="AdminTheatres" component={AdminTheatresScreen} options={{ title: 'Θέατρα' }} />
+      <Stack.Screen name="AdminShows" component={AdminShowsScreen} options={{ title: 'Παραστάσεις' }} />
+      <Stack.Screen name="AdminShowtimes" component={AdminShowtimesScreen} options={{ title: 'Ωράρια' }} />
+      <Stack.Screen name="AdminReservations" component={AdminReservationsScreen} options={{ title: 'Κρατήσεις' }} />
+      <Stack.Screen name="AdminUsers" component={AdminUsersScreen} options={{ title: 'Χρήστες' }} />
+    </Stack.Navigator>
+  );
+}
+
 // Bottom Tab Navigator (μετά τη σύνδεση)
 function MainTabs({ user, onLogout }) {
+  const admin = isAdmin(user);
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -46,7 +68,7 @@ function MainTabs({ user, onLogout }) {
         tabBarInactiveTintColor: '#666',
         tabBarStyle: { backgroundColor: '#0d1f3c', borderTopColor: '#ffd700', borderTopWidth: 1 },
         tabBarIcon: ({ color }) => {
-          const icons = { Theatres: '🎭', Profile: '👤' };
+          const icons = { Theatres: '🎭', Profile: '👤', Admin: '⚙️' };
           return <Text style={{ fontSize: 20 }}>{icons[route.name]}</Text>;
         },
         headerShown: false,
@@ -64,6 +86,11 @@ function MainTabs({ user, onLogout }) {
           </Stack.Navigator>
         )}
       </Tab.Screen>
+      {admin && (
+        <Tab.Screen name="Admin" options={{ title: 'Admin' }}>
+          {() => <AdminStack />}
+        </Tab.Screen>
+      )}
     </Tab.Navigator>
   );
 }

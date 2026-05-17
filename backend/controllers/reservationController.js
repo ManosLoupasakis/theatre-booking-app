@@ -23,7 +23,8 @@ async function getUserReservations(req, res) {
 
 async function cancel(req, res) {
   try {
-    const result = await reservationService.cancelReservation(req.params.id, req.user.user_id);
+    const isAdmin = req.user.role === 'admin';
+    const result = await reservationService.cancelReservation(req.params.id, req.user.user_id, isAdmin);
     res.json(result);
   } catch (err) {
     res.status(400).json({ message: err.message });

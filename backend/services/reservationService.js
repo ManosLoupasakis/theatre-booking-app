@@ -55,11 +55,13 @@ async function getUserReservations(userId) {
   return rows;
 }
 
-async function cancelReservation(reservationId, userId) {
-  const [rows] = await pool.query(
-    'SELECT * FROM reservations WHERE reservation_id = ? AND user_id = ?',
-    [reservationId, userId]
-  );
+async function cancelReservation(reservationId, userId, isAdmin = false) {
+  const query = isAdmin
+    ? 'SELECT * FROM reservations WHERE reservation_id = ?'
+    : 'SELECT * FROM reservations WHERE reservation_id = ? AND user_id = ?';
+  const params = isAdmin ? [reservationId] : [reservationId, userId];
+
+  const [rows] = await pool.query(query, params);
   if (rows.length === 0) throw new Error('Reservation not found');
   if (rows[0].status === 'cancelled') throw new Error('Already cancelled');
 

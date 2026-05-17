@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ImageBackground } from 'react-native';
 import { getMyReservations, cancelReservation, logout } from '../services/api';
 
 export default function ProfileScreen({ user, onLogout }) {
@@ -76,37 +76,45 @@ export default function ProfileScreen({ user, onLogout }) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.profileHeader}>
-        <View>
-          <Text style={styles.userName}>{user?.name}</Text>
-          <Text style={styles.userEmail}>{user?.email}</Text>
+    <ImageBackground
+      source={{ uri: 'https://www.newsit.gr/wp-content/uploads/2020/10/THEATRO_PEIRAIA-scaled.jpg' }}
+      style={styles.container}
+      imageStyle={styles.backgroundImage}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.profileHeader}>
+          <View>
+            <Text style={styles.userName}>{user?.name}</Text>
+            <Text style={styles.userEmail}>{user?.email}</Text>
+          </View>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Αποσύνδεση</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Αποσύνδεση</Text>
-        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Κρατήσεις μου</Text>
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
+        ) : (
+          <FlatList
+            data={reservations}
+            keyExtractor={item => String(item.reservation_id)}
+            renderItem={renderItem}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={<Text style={styles.empty}>Δεν έχεις κρατήσεις ακόμα.</Text>}
+          />
+        )}
       </View>
-
-      <Text style={styles.sectionTitle}>Κρατήσεις μου</Text>
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={reservations}
-          keyExtractor={item => String(item.reservation_id)}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.empty}>Δεν έχεις κρατήσεις ακόμα.</Text>}
-        />
-      )}
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d1f3c', padding: 16 },
+  container: { flex: 1 },
+  backgroundImage: { resizeMode: 'cover', opacity: 0.4 },
+  overlay: { flex: 1, backgroundColor: 'rgba(13, 31, 60, 0.5)', padding: 16 },
   profileHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1a1a2e', borderRadius: 14, padding: 16, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#ffd700' },
   userName: { fontSize: 18, fontWeight: 'bold', color: '#ffd700' },
   userEmail: { fontSize: 13, color: '#b8a8ff', marginTop: 2 },
@@ -131,5 +139,5 @@ const styles = StyleSheet.create({
   confirmYesText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   confirmNo: { backgroundColor: '#444', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   confirmNoText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#666' },
+  empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#fff' },
 });

@@ -8,10 +8,10 @@ async function register(name, email, password) {
 
   const hashed = await bcrypt.hash(password, 10);
   const [result] = await pool.query(
-    'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-    [name, email, hashed]
+    'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+    [name, email, hashed, 'user']
   );
-  return { user_id: result.insertId, name, email };
+  return { user_id: result.insertId, name, email, role: 'user' };
 }
 
 async function login(email, password) {
@@ -22,12 +22,13 @@ async function login(email, password) {
   const match = await bcrypt.compare(password, user.password);
   if (!match) throw new Error('Invalid credentials');
 
+  const role = user.role || 'user';
   const token = jwt.sign(
-    { user_id: user.user_id, email: user.email, name: user.name },
+    { user_id: user.user_id, email: user.email, name: user.name, role },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN }
   );
-  return { token, user: { user_id: user.user_id, name: user.name, email: user.email } };
+  return { token, user: { user_id: user.user_id, name: user.name, email: user.email, role } };
 }
 
 module.exports = { register, login };

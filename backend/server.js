@@ -8,6 +8,7 @@ const showRoutes        = require('./routes/shows');
 const showtimeRoutes    = require('./routes/showtimes');
 const seatRoutes        = require('./routes/seats');
 const reservationRoutes = require('./routes/reservations');
+const adminRoutes       = require('./routes/admin');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use('/showtimes',    showtimeRoutes);
 app.use('/seats',        seatRoutes);
 app.use('/reservations', reservationRoutes);
 app.use('/user/reservations', reservationRoutes);
+app.use('/admin',        adminRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
