@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const initDatabase = require('./db/init');
 
 const authRoutes        = require('./routes/auth');
 const theatreRoutes     = require('./routes/theatres');
@@ -27,4 +28,7 @@ app.use('/admin',        adminRoutes);
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
+initDatabase()
+  .then(() => app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`)))
+  .catch(err => { console.error('Database init failed:', err.message); process.exit(1); });

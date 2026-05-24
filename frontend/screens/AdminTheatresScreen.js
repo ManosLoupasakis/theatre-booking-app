@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator,
+  View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity,
+  Modal, TextInput, ActivityIndicator,
 } from 'react-native';
 import {
   adminGetTheatres, adminCreateTheatre, adminUpdateTheatre, adminDeleteTheatre,
 } from '../services/api';
+import { Toast, useToast, ConfirmModal, useConfirm } from '../components/Feedback';
 
 const EMPTY = { name: '', location: '', description: '' };
 
@@ -16,16 +18,21 @@ export default function AdminTheatresScreen() {
   const [editing, setEditing]   = useState(null);
   const [form, setForm]         = useState(EMPTY);
   const [saving, setSaving]     = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
+  const { confirm, showConfirm, closeConfirm } = useConfirm();
 
   const load = useCallback(() => {
     setLoading(true);
     adminGetTheatres()
       .then(setTheatres)
-      .catch(e => Alert.alert('Σφάλμα', e.message))
-      .finally(() => setLoading(false));
+      .catch(e => showToast(e.message, 'error'))
+      .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
 
   function openAdd() {
     setEditing(null);
@@ -41,40 +48,44 @@ export default function AdminTheatresScreen() {
 
   async function save() {
     if (!form.name.trim() || !form.location.trim()) {
-      Alert.alert('Σφάλμα', 'Όνομα και τοποθεσία είναι υποχρεωτικά');
+      showToast('Όνομα και τοποθεσία είναι υποχρεωτικά', 'error');
       return;
     }
     setSaving(true);
     try {
       if (editing) {
         await adminUpdateTheatre(editing.theatre_id, form);
+        showToast('Το θέατρο ενημερώθηκε', 'success');
       } else {
         await adminCreateTheatre(form);
+        showToast('Το θέατρο δημιουργήθηκε', 'success');
       }
       setModal(false);
       load();
     } catch (e) {
-      Alert.alert('Σφάλμα', e.message);
+      showToast(e.message, 'error');
     } finally {
       setSaving(false);
     }
   }
 
   function confirmDelete(item) {
-    Alert.alert('Διαγραφή', `Διαγραφή "${item.name}";`, [
-      { text: 'Ακύρωση', style: 'cancel' },
-      {
-        text: 'Διαγραφή', style: 'destructive',
-        onPress: async () => {
-          try {
-            await adminDeleteTheatre(item.theatre_id);
-            load();
-          } catch (e) {
-            Alert.alert('Σφάλμα', e.message);
-          }
-        },
+    showConfirm({
+      title: 'Διαγραφή Θεάτρου',
+      message: `Θέλεις σίγουρα να διαγράψεις το "${item.name}";`,
+      confirmText: 'Διαγραφή',
+      isDestructive: true,
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await adminDeleteTheatre(item.theatre_id);
+          showToast('Το θέατρο διαγράφηκε', 'success');
+          load();
+        } catch (e) {
+          showToast(e.message, 'error');
+        }
       },
-    ]);
+    });
   }
 
   return (
@@ -87,6 +98,7 @@ export default function AdminTheatresScreen() {
         ? <ActivityIndicator color="#ffd700" size="large" style={{ marginTop: 40 }} />
         : (
           <FlatList
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
             data={theatres}
             keyExtractor={i => String(i.theatre_id)}
             contentContainerStyle={{ padding: 16 }}
@@ -139,6 +151,17 @@ export default function AdminTheatresScreen() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        isDestructive={confirm.isDestructive}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
+      />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </View>
   );
 }

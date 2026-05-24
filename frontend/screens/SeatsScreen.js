@@ -1,32 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, ImageBackground } from 'react-native';
+import {
+  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
+  ScrollView, ImageBackground,
+} from 'react-native';
 import { getSeats, createReservation } from '../services/api';
+import { Toast, useToast } from '../components/Feedback';
 
-const CATEGORY_COLOR = { vip: '#ffd700', standard: '#0066cc', balcony: '#22aa22' };
-const CATEGORY_LABEL = { vip: 'VIP', standard: 'Standard', balcony: 'Balcony' };
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+const CAT_COLOR  = { vip: '#ffd700', standard: '#4488ee', balcony: '#33cc66' };
+const CAT_LABEL  = { vip: 'VIP', standard: 'Standard', balcony: 'Balcony' };
+const CAT_DIM    = { vip: 'rgba(255,215,0,0.12)', standard: 'rgba(68,136,238,0.10)', balcony: 'rgba(51,204,102,0.10)' };
+
+// Fan effect: front rows (small idx) get more horizontal padding → narrower appearance
+function rowPadding(rowLabel) {
+  const idx = ALPHABET.indexOf(rowLabel);
+  return Math.max(0, 22 - idx * 3);
+}
 
 export default function SeatsScreen({ route, navigation }) {
   const { showtime, show } = route.params;
-  const [seats, setSeats] = useState([]);
+  const [seats, setSeats]     = useState([]);
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
+  const { toast, showToast }  = useToast();
 
   useEffect(() => {
-    async function fetch() {
-      try {
-        const data = await getSeats(showtime.showtime_id);
-        setSeats(data);
-      } catch (err) {
-        Alert.alert('Σφάλμα', err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
+    getSeats(showtime.showtime_id)
+      .then(setSeats)
+      .catch(err => showToast(err.message, 'error'))
+      .finally(() => setLoading(false));
   }, [showtime.showtime_id]);
 
-  function toggleSeat(seat) {
+  function toggle(seat) {
     if (seat.status === 'reserved') return;
     setSelected(prev =>
       prev.includes(seat.seat_id)
@@ -36,25 +43,37 @@ export default function SeatsScreen({ route, navigation }) {
   }
 
   async function handleBook() {
-    if (selected.length === 0) return Alert.alert('Επιλογή', 'Επέλεξε τουλάχιστον μία θέση.');
+    if (!selected.length) return showToast('Επέλεξε τουλάχιστον μία θέση.', 'error');
     setBooking(true);
     try {
       await createReservation(showtime.showtime_id, selected);
-      Alert.alert('Επιτυχία!', `Η κράτησή σου ολοκληρώθηκε για ${selected.length} θέση/εις.`, [
-        { text: 'OK', onPress: () => navigation.navigate('Profile') }
-      ]);
+      showToast(`Κράτηση για ${selected.length} θέση/εις ολοκληρώθηκε!`, 'success',
+        () => navigation.navigate('Profile'));
     } catch (err) {
-      Alert.alert('Σφάλμα κράτησης', err.message);
+      showToast(err.message, 'error');
     } finally {
       setBooking(false);
     }
   }
 
-  const rows = seats.reduce((acc, seat) => {
-    if (!acc[seat.row_label]) acc[seat.row_label] = [];
-    acc[seat.row_label].push(seat);
-    return acc;
-  }, {});
+  // Build sorted rows
+  const rowMap = {};
+  seats.forEach(s => {
+    if (!rowMap[s.row_label]) rowMap[s.row_label] = [];
+    rowMap[s.row_label].push(s);
+  });
+  const sortedRows = Object.entries(rowMap)
+    .sort(([a], [b]) => ALPHABET.indexOf(a) - ALPHABET.indexOf(b))
+    .map(([row, rs], idx, arr) => {
+      const section = rs[0]?.category;
+      const prevSection = idx > 0 ? arr[idx - 1][1][0]?.category : null;
+      return {
+        row,
+        seats: [...rs].sort((a, b) => a.seat_number - b.seat_number),
+        section,
+        newSection: section !== prevSection,
+      };
+    });
 
   const totalPrice = selected.length * parseFloat(showtime.price);
 
@@ -62,65 +81,161 @@ export default function SeatsScreen({ route, navigation }) {
     <ImageBackground
       source={{ uri: 'https://www.newsit.gr/wp-content/uploads/2020/10/THEATRO_PEIRAIA-scaled.jpg' }}
       style={styles.container}
-      imageStyle={styles.backgroundImage}
+      imageStyle={styles.bgImg}
     >
       <View style={styles.overlay}>
-        <Text style={styles.title}>{show.title}</Text>
-        <Text style={styles.subtitle}>Επιλογή Θέσεων · {showtime.hall}</Text>
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} />
 
-        <View style={styles.legend}>
-          {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
-            <View key={k} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: CATEGORY_COLOR[k] }]} />
-              <Text style={styles.legendText}>{v}</Text>
-            </View>
-          ))}
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#ccc' }]} />
-            <Text style={styles.legendText}>Κρατημένη</Text>
-          </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{show.title}</Text>
+          <Text style={styles.headerSub}>{showtime.hall} · €{parseFloat(showtime.price).toFixed(2)} / θέση</Text>
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 60 }} />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.stageLabel}>— ΣΚΗΝΗ —</Text>
-            {Object.entries(rows).map(([row, rowSeats]) => (
-              <View key={row} style={styles.row}>
-                <Text style={styles.rowLabel}>{row}</Text>
-                {rowSeats.map(seat => {
-                  const isSelected = selected.includes(seat.seat_id);
-                  const isReserved = seat.status === 'reserved';
-                  return (
-                    <TouchableOpacity
-                      key={seat.seat_id}
-                      style={[
-                        styles.seat,
-                        { backgroundColor: isReserved ? '#ccc' : isSelected ? '#ffd700' : CATEGORY_COLOR[seat.category] },
-                      ]}
-                      onPress={() => toggleSeat(seat)}
-                      disabled={isReserved}
-                    >
-                      <Text style={[styles.seatText, isSelected && { color: '#000' }]}>{seat.seat_number}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+            {/* Stage */}
+            <View style={styles.stageWrap}>
+              <View style={styles.perspLeft} />
+              <View style={styles.perspRight} />
+              <View style={styles.stage}>
+                <Text style={styles.stageEmoji}>🎭</Text>
+                <Text style={styles.stageText}>Σ  Κ  Η  Ν  Η</Text>
               </View>
-            ))}
+            </View>
+
+            {/* Legend */}
+            <View style={styles.legend}>
+              {Object.entries(CAT_LABEL).map(([k, v]) => (
+                <View key={k} style={styles.legendItem}>
+                  <View style={[styles.legendBox, { backgroundColor: CAT_COLOR[k] }]} />
+                  <Text style={styles.legendTxt}>{v}</Text>
+                </View>
+              ))}
+              <View style={styles.legendItem}>
+                <View style={[styles.legendBox, { backgroundColor: '#444' }]} />
+                <Text style={styles.legendTxt}>Κρατημένη</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendBox, styles.legendSelected]} />
+                <Text style={styles.legendTxt}>Επιλεγμένη</Text>
+              </View>
+            </View>
+
+            {/* Rows */}
+            <View style={styles.theatre}>
+              {sortedRows.map(({ row, seats: rowSeats, section, newSection }) => {
+                const pad  = rowPadding(row);
+                const left = rowSeats.filter(s => s.seat_number <= 5);
+                const right= rowSeats.filter(s => s.seat_number > 5);
+
+                return (
+                  <View key={row}>
+                    {newSection && (
+                      <View style={[styles.secDiv, { borderColor: CAT_COLOR[section] + '44' }]}>
+                        <View style={[styles.secLine, { backgroundColor: CAT_COLOR[section] }]} />
+                        <Text style={[styles.secLabel, { color: CAT_COLOR[section] }]}>
+                          ── {CAT_LABEL[section]} ──
+                        </Text>
+                        <View style={[styles.secLine, { backgroundColor: CAT_COLOR[section] }]} />
+                      </View>
+                    )}
+
+                    <View style={[
+                      styles.row,
+                      { paddingHorizontal: pad, backgroundColor: CAT_DIM[section] },
+                    ]}>
+                      <Text style={styles.rowLbl}>{row}</Text>
+
+                      <View style={styles.half}>
+                        {left.map(seat => {
+                          const sel = selected.includes(seat.seat_id);
+                          const res = seat.status === 'reserved';
+                          return (
+                            <TouchableOpacity
+                              key={seat.seat_id}
+                              style={[
+                                styles.seat,
+                                { backgroundColor: res ? '#3a3a3a' : CAT_COLOR[seat.category] },
+                                sel && styles.seatSel,
+                                res && styles.seatRes,
+                              ]}
+                              onPress={() => toggle(seat)}
+                              disabled={res}
+                            >
+                              <Text style={[styles.seatN, sel && styles.seatNSel, res && styles.seatNRes]}>
+                                {seat.seat_number}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      <View style={styles.aisle}>
+                        <Text style={styles.aisleText}>│</Text>
+                      </View>
+
+                      <View style={styles.half}>
+                        {right.map(seat => {
+                          const sel = selected.includes(seat.seat_id);
+                          const res = seat.status === 'reserved';
+                          return (
+                            <TouchableOpacity
+                              key={seat.seat_id}
+                              style={[
+                                styles.seat,
+                                { backgroundColor: res ? '#3a3a3a' : CAT_COLOR[seat.category] },
+                                sel && styles.seatSel,
+                                res && styles.seatRes,
+                              ]}
+                              onPress={() => toggle(seat)}
+                              disabled={res}
+                            >
+                              <Text style={[styles.seatN, sel && styles.seatNSel, res && styles.seatNRes]}>
+                                {seat.seat_number}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      <Text style={styles.rowLbl}>{row}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Viewer position */}
+            <View style={styles.viewer}>
+              <View style={styles.viewerLine} />
+              <Text style={styles.viewerText}>👁  Θέαση από εδώ</Text>
+              <View style={styles.viewerLine} />
+            </View>
+
           </ScrollView>
         )}
 
+        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {selected.length} θέση/εις · <Text style={styles.priceText}>€{totalPrice.toFixed(2)}</Text>
-          </Text>
+          <View>
+            <Text style={styles.footerSub}>Επιλεγμένες</Text>
+            <Text style={styles.footerMain}>
+              {selected.length} θέσεις  ·  <Text style={styles.footerPrice}>€{totalPrice.toFixed(2)}</Text>
+            </Text>
+          </View>
           <TouchableOpacity
-            style={[styles.bookBtn, (booking || selected.length === 0) && styles.bookBtnDisabled]}
+            style={[styles.bookBtn, (booking || !selected.length) && styles.bookBtnOff]}
             onPress={handleBook}
-            disabled={booking || selected.length === 0}
+            disabled={booking || !selected.length}
           >
-            {booking ? <ActivityIndicator color="#fff" /> : <Text style={styles.bookBtnText}>Κράτηση</Text>}
+            {booking
+              ? <ActivityIndicator color="#0d1f3c" />
+              : <Text style={styles.bookBtnTxt}>Κράτηση →</Text>
+            }
           </TouchableOpacity>
         </View>
       </View>
@@ -130,23 +245,113 @@ export default function SeatsScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  backgroundImage: { resizeMode: 'cover', opacity: 0.4 },
-  overlay: { flex: 1, backgroundColor: 'rgba(13, 31, 60, 0.5)', padding: 16 },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#ffd700' },
-  subtitle: { fontSize: 13, color: '#b8a8ff', marginBottom: 12 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12, gap: 10 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendDot: { width: 14, height: 14, borderRadius: 4 },
-  legendText: { fontSize: 12, color: '#c5c5c5' },
-  stageLabel: { textAlign: 'center', color: '#ccc', marginBottom: 16, fontWeight: '600', letterSpacing: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'center' },
-  rowLabel: { width: 24, fontWeight: 'bold', color: '#b8a8ff', marginRight: 6 },
-  seat: { width: 36, height: 36, borderRadius: 6, margin: 3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ffd700' },
-  seatText: { fontSize: 12, fontWeight: '600', color: '#333' },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTopWidth: 1, borderColor: '#ffd700', marginTop: 8 },
-  footerText: { fontSize: 16, color: '#fff' },
-  priceText: { fontWeight: 'bold', color: '#8eff00' },
-  bookBtn: { backgroundColor: '#ffd700', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
-  bookBtnDisabled: { backgroundColor: '#999' },
-  bookBtnText: { color: '#0d1f3c', fontWeight: 'bold', fontSize: 16 },
+  bgImg:     { resizeMode: 'cover', opacity: 0.25 },
+  overlay:   { flex: 1, backgroundColor: 'rgba(4, 10, 24, 0.88)' },
+
+  header:      { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
+  headerTitle: { color: '#ffd700', fontSize: 18, fontWeight: 'bold' },
+  headerSub:   { color: '#b8a8ff', fontSize: 13, marginTop: 2 },
+
+  scroll: { paddingBottom: 16 },
+
+  // ── Stage ──────────────────────────────────────────────────────
+  stageWrap: {
+    alignItems: 'center', paddingVertical: 16,
+    position: 'relative',
+  },
+  perspLeft: {
+    position: 'absolute', top: 30, left: '10%',
+    width: 2, height: 50,
+    backgroundColor: '#ffd700', opacity: 0.15,
+    transform: [{ rotate: '-30deg' }],
+  },
+  perspRight: {
+    position: 'absolute', top: 30, right: '10%',
+    width: 2, height: 50,
+    backgroundColor: '#ffd700', opacity: 0.15,
+    transform: [{ rotate: '30deg' }],
+  },
+  stage: {
+    width: '52%',
+    backgroundColor: '#150e00',
+    borderWidth: 2, borderColor: '#ffd700',
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+    paddingVertical: 12, alignItems: 'center',
+    shadowColor: '#ffd700', shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7, shadowRadius: 18, elevation: 14,
+  },
+  stageEmoji: { fontSize: 22, marginBottom: 2 },
+  stageText:  { color: '#ffd700', fontWeight: 'bold', fontSize: 12, letterSpacing: 3 },
+
+  // ── Legend ──────────────────────────────────────────────────────
+  legend: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    justifyContent: 'center', gap: 10,
+    paddingHorizontal: 16, paddingBottom: 10,
+  },
+  legendItem:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendBox:     { width: 14, height: 14, borderRadius: 3 },
+  legendSelected:{ backgroundColor: '#fff', borderWidth: 2, borderColor: '#ffd700' },
+  legendTxt:     { color: '#999', fontSize: 11 },
+
+  // ── Theatre ──────────────────────────────────────────────────────
+  theatre: { paddingHorizontal: 6 },
+
+  secDiv: {
+    flexDirection: 'row', alignItems: 'center',
+    marginTop: 10, marginBottom: 4, gap: 6,
+    paddingHorizontal: 8, borderTopWidth: 1,
+    paddingTop: 8,
+  },
+  secLine:  { flex: 1, height: 1 },
+  secLabel: { fontSize: 10, fontWeight: 'bold', letterSpacing: 2 },
+
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 3, borderRadius: 4, paddingVertical: 2,
+  },
+  rowLbl: { width: 16, textAlign: 'center', color: '#666', fontSize: 10, fontWeight: '700' },
+
+  half:  { flexDirection: 'row' },
+  aisle: { width: 14, alignItems: 'center', justifyContent: 'center' },
+  aisleText: { color: '#2a3a5b', fontSize: 18, lineHeight: 20 },
+
+  // ── Seats ──────────────────────────────────────────────────────
+  seat: {
+    width: 26, height: 26, borderRadius: 5,
+    margin: 1.5,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  seatSel: {
+    backgroundColor: '#fff',
+    borderWidth: 2, borderColor: '#ffd700',
+    shadowColor: '#ffd700', shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1, shadowRadius: 6, elevation: 8,
+  },
+  seatRes: { opacity: 0.35 },
+  seatN:    { fontSize: 8, fontWeight: '800', color: '#111' },
+  seatNSel: { color: '#0d1f3c' },
+  seatNRes: { color: '#666' },
+
+  // ── Viewer ──────────────────────────────────────────────────────
+  viewer: {
+    flexDirection: 'row', alignItems: 'center',
+    marginTop: 14, marginHorizontal: 20, gap: 8,
+  },
+  viewerLine: { flex: 1, height: 1, backgroundColor: '#2a3a5b' },
+  viewerText: { color: '#3a4a6b', fontSize: 11, letterSpacing: 1 },
+
+  // ── Footer ──────────────────────────────────────────────────────
+  footer: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 16, borderTopWidth: 1, borderColor: '#1a2a4b',
+    backgroundColor: 'rgba(4,10,24,0.97)',
+  },
+  footerSub:   { color: '#888', fontSize: 12 },
+  footerMain:  { color: '#fff', fontSize: 16, fontWeight: '600', marginTop: 2 },
+  footerPrice: { color: '#8eff00', fontWeight: 'bold' },
+  bookBtn:    { backgroundColor: '#ffd700', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 24 },
+  bookBtnOff: { backgroundColor: '#2a3a5b' },
+  bookBtnTxt: { color: '#0d1f3c', fontWeight: 'bold', fontSize: 16 },
 });

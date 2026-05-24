@@ -1,25 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Alert, ActivityIndicator, TextInput,
+  View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity,
+  ActivityIndicator, TextInput,
 } from 'react-native';
 import { adminGetUsers, adminUpdateUserRole, adminDeleteUser } from '../services/api';
+import { Toast, useToast, ConfirmModal, useConfirm } from '../components/Feedback';
 
 export default function AdminUsersScreen() {
   const [all, setAll]           = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
+  const { confirm, showConfirm, closeConfirm } = useConfirm();
 
   const load = useCallback(() => {
     setLoading(true);
     adminGetUsers()
       .then(data => { setAll(data); setFiltered(data); })
-      .catch(e => Alert.alert('Σφάλμα', e.message))
-      .finally(() => setLoading(false));
+      .catch(e => showToast(e.message, 'error'))
+      .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
 
   useEffect(() => {
     if (!search.trim()) { setFiltered(all); return; }
@@ -31,33 +38,31 @@ export default function AdminUsersScreen() {
 
   function toggleRole(item) {
     const newRole = item.role === 'admin' ? 'user' : 'admin';
-    Alert.alert(
-      'Αλλαγή ρόλου',
-      `Αλλαγή ρόλου του "${item.name}" σε ${newRole === 'admin' ? 'Admin' : 'Χρήστη'};`,
-      [
-        { text: 'Ακύρωση', style: 'cancel' },
-        {
-          text: 'Αλλαγή',
-          onPress: async () => {
-            try { await adminUpdateUserRole(item.user_id, newRole); load(); }
-            catch (e) { Alert.alert('Σφάλμα', e.message); }
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Αλλαγή Ρόλου',
+      message: `Αλλαγή ρόλου του "${item.name}" σε ${newRole === 'admin' ? 'Admin' : 'Χρήστη'};`,
+      confirmText: 'Αλλαγή',
+      isDestructive: false,
+      onConfirm: async () => {
+        closeConfirm();
+        try { await adminUpdateUserRole(item.user_id, newRole); showToast('Ο ρόλος ενημερώθηκε', 'success'); load(); }
+        catch (e) { showToast(e.message, 'error'); }
+      },
+    });
   }
 
   function confirmDelete(item) {
-    Alert.alert('Διαγραφή', `Διαγραφή χρήστη "${item.name}";`, [
-      { text: 'Ακύρωση', style: 'cancel' },
-      {
-        text: 'Διαγραφή', style: 'destructive',
-        onPress: async () => {
-          try { await adminDeleteUser(item.user_id); load(); }
-          catch (e) { Alert.alert('Σφάλμα', e.message); }
-        },
+    showConfirm({
+      title: 'Διαγραφή Χρήστη',
+      message: `Θέλεις σίγουρα να διαγράψεις τον "${item.name}";`,
+      confirmText: 'Διαγραφή',
+      isDestructive: true,
+      onConfirm: async () => {
+        closeConfirm();
+        try { await adminDeleteUser(item.user_id); showToast('Ο χρήστης διαγράφηκε', 'success'); load(); }
+        catch (e) { showToast(e.message, 'error'); }
       },
-    ]);
+    });
   }
 
   function formatDate(dt) {
@@ -81,6 +86,7 @@ export default function AdminUsersScreen() {
         ? <ActivityIndicator color="#ffd700" size="large" style={{ marginTop: 40 }} />
         : (
           <FlatList
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
             data={filtered}
             keyExtractor={i => String(i.user_id)}
             contentContainerStyle={{ padding: 16 }}
@@ -109,6 +115,17 @@ export default function AdminUsersScreen() {
           />
         )
       }
+
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        isDestructive={confirm.isDestructive}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
+      />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </View>
   );
 }

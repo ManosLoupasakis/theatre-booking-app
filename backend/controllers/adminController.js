@@ -65,9 +65,10 @@ const deleteShowtime = handle(async (req) => {
   return { message: 'Deleted' };
 });
 const generateSeats = handle(async (req) => {
-  const { rows, seatsPerRow, vipRows, balconyRows } = req.body;
-  if (!rows || !seatsPerRow) throw new Error('rows and seatsPerRow required');
-  return svc.generateSeats(req.params.id, rows, seatsPerRow, vipRows, balconyRows);
+  const vip      = parseInt(req.body.vipCount,      10) || 0;
+  const standard = parseInt(req.body.standardCount, 10) || 0;
+  const balcony  = parseInt(req.body.balconyCount,  10) || 0;
+  return svc.generateSeats(req.params.id, vip, standard, balcony);
 });
 
 // Reservations

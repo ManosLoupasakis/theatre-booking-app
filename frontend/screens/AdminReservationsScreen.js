@@ -1,25 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Alert, ActivityIndicator, TextInput,
+  View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity,
+  ActivityIndicator, TextInput,
 } from 'react-native';
 import { adminGetReservations, adminCancelReservation } from '../services/api';
+import { Toast, useToast, ConfirmModal, useConfirm } from '../components/Feedback';
 
 export default function AdminReservationsScreen() {
   const [all, setAll]         = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch]   = useState('');
+  const { toast, showToast } = useToast();
+  const { confirm, showConfirm, closeConfirm } = useConfirm();
 
   const load = useCallback(() => {
     setLoading(true);
     adminGetReservations()
       .then(data => { setAll(data); setFiltered(data); })
-      .catch(e => Alert.alert('Σφάλμα', e.message))
-      .finally(() => setLoading(false));
+      .catch(e => showToast(e.message, 'error'))
+      .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
 
   useEffect(() => {
     if (!search.trim()) { setFiltered(all); return; }
@@ -33,16 +40,17 @@ export default function AdminReservationsScreen() {
   }, [search, all]);
 
   function confirmCancel(item) {
-    Alert.alert('Ακύρωση', `Ακύρωση κράτησης #${item.reservation_id};`, [
-      { text: 'Όχι', style: 'cancel' },
-      {
-        text: 'Ακύρωση', style: 'destructive',
-        onPress: async () => {
-          try { await adminCancelReservation(item.reservation_id); load(); }
-          catch (e) { Alert.alert('Σφάλμα', e.message); }
-        },
+    showConfirm({
+      title: 'Ακύρωση Κράτησης',
+      message: `Θέλεις σίγουρα να ακυρώσεις την κράτηση #${item.reservation_id};`,
+      confirmText: 'Ακύρωση',
+      isDestructive: true,
+      onConfirm: async () => {
+        closeConfirm();
+        try { await adminCancelReservation(item.reservation_id); showToast('Η κράτηση ακυρώθηκε', 'success'); load(); }
+        catch (e) { showToast(e.message, 'error'); }
       },
-    ]);
+    });
   }
 
   function formatDate(dt) {
@@ -66,6 +74,7 @@ export default function AdminReservationsScreen() {
         ? <ActivityIndicator color="#ffd700" size="large" style={{ marginTop: 40 }} />
         : (
           <FlatList
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
             data={filtered}
             keyExtractor={i => String(i.reservation_id)}
             contentContainerStyle={{ padding: 16 }}
@@ -95,6 +104,17 @@ export default function AdminReservationsScreen() {
           />
         )
       }
+
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        isDestructive={confirm.isDestructive}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
+      />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </View>
   );
 }

@@ -1,27 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ImageBackground } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, TextInput, FlatList, RefreshControl, TouchableOpacity, StyleSheet, ActivityIndicator, ImageBackground } from 'react-native';
 import { getShows } from '../services/api';
+import { Toast, useToast } from '../components/Feedback';
 
 export default function ShowsScreen({ route, navigation }) {
   const { theatre } = route.params;
   const [shows, setShows] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
 
-  useEffect(() => {
-    async function fetch() {
-      setLoading(true);
-      try {
-        const data = await getShows({ theatreId: theatre.theatre_id, title: search });
-        setShows(data);
-      } catch (err) {
-        Alert.alert('Σφάλμα', err.message);
-      } finally {
-        setLoading(false);
-      }
+  const fetchShows = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getShows({ theatreId: theatre.theatre_id, title: search });
+      setShows(data);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    fetch();
   }, [search, theatre.theatre_id]);
+
+  useFocusEffect(useCallback(() => { fetchShows(); }, [fetchShows]));
+
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchShows(); }, [fetchShows]);
 
   const renderItem = ({ item }) => (
     <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Showtimes', { show: item })}>
@@ -54,6 +60,7 @@ export default function ShowsScreen({ route, navigation }) {
           <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
         ) : (
           <FlatList
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
             data={shows}
             keyExtractor={item => String(item.show_id)}
             renderItem={renderItem}
@@ -62,6 +69,7 @@ export default function ShowsScreen({ route, navigation }) {
             ListEmptyComponent={<Text style={styles.empty}>Δεν βρέθηκαν παραστάσεις.</Text>}
           />
         )}
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} />
       </View>
     </ImageBackground>
   );

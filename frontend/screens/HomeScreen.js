@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ImageBackground, Image } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, TextInput, FlatList, RefreshControl, TouchableOpacity, StyleSheet, ActivityIndicator, ImageBackground, Image } from 'react-native';
 import { getTheatres } from '../services/api';
+import { Toast, useToast } from '../components/Feedback';
 
 export default function HomeScreen({ navigation }) {
   const [theatres, setTheatres] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
 
   const fetchTheatres = useCallback(async () => {
     setLoading(true);
@@ -13,13 +17,16 @@ export default function HomeScreen({ navigation }) {
       const data = await getTheatres(search);
       setTheatres(data);
     } catch (err) {
-      Alert.alert('Σφάλμα', err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [search]);
 
-  useEffect(() => { fetchTheatres(); }, [fetchTheatres]);
+  useFocusEffect(useCallback(() => { fetchTheatres(); }, [fetchTheatres]));
+
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchTheatres(); }, [fetchTheatres]);
 
   const renderItem = ({ item }) => (
     <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Shows', { theatre: item })}>
@@ -54,6 +61,7 @@ export default function HomeScreen({ navigation }) {
           <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
         ) : (
           <FlatList
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
             data={theatres}
             keyExtractor={item => String(item.theatre_id)}
             renderItem={renderItem}
@@ -62,6 +70,7 @@ export default function HomeScreen({ navigation }) {
             ListEmptyComponent={<Text style={styles.empty}>Δεν βρέθηκαν θέατρα.</Text>}
           />
         )}
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} />
       </View>
     </ImageBackground>
   );

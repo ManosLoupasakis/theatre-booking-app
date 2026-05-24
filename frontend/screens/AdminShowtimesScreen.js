@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator, ScrollView,
+  View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity,
+  Modal, TextInput, ActivityIndicator, ScrollView,
 } from 'react-native';
 import {
   adminGetShowtimes, adminCreateShowtime, adminUpdateShowtime,
   adminDeleteShowtime, adminGenerateSeats, adminGetShows,
 } from '../services/api';
+import { Toast, useToast, ConfirmModal, useConfirm } from '../components/Feedback';
 
 const EMPTY_ST = { show_id: '', datetime: '', hall: '', price: '' };
-const EMPTY_SEATS = { rows: '4', seatsPerRow: '5', vipRows: 'A', balconyRows: 'D' };
+const EMPTY_SEATS = { vipCount: '10', standardCount: '60', balconyCount: '10' };
+const MAX_SEATS = 100;
 
 export default function AdminShowtimesScreen() {
   const [showtimes, setShowtimes] = useState([]);
@@ -22,16 +25,21 @@ export default function AdminShowtimesScreen() {
   const [form, setForm]           = useState(EMPTY_ST);
   const [seatsForm, setSeatsForm] = useState(EMPTY_SEATS);
   const [saving, setSaving]       = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
+  const { confirm, showConfirm, closeConfirm } = useConfirm();
 
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([adminGetShowtimes(), adminGetShows()])
       .then(([st, s]) => { setShowtimes(st); setShows(s); })
-      .catch(e => Alert.alert('Σφάλμα', e.message))
-      .finally(() => setLoading(false));
+      .catch(e => showToast(e.message, 'error'))
+      .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
 
   function openAdd() {
     setEditing(null);
@@ -58,54 +66,55 @@ export default function AdminShowtimesScreen() {
 
   async function save() {
     if (!form.show_id || !form.datetime || !form.hall || !form.price) {
-      Alert.alert('Σφάλμα', 'Όλα τα πεδία είναι υποχρεωτικά');
+      showToast('Όλα τα πεδία είναι υποχρεωτικά', 'error');
       return;
     }
     setSaving(true);
     try {
       const payload = { ...form, price: parseFloat(form.price) };
-      if (editing) await adminUpdateShowtime(editing.showtime_id, payload);
-      else await adminCreateShowtime(payload);
+      if (editing) { await adminUpdateShowtime(editing.showtime_id, payload); showToast('Το ωράριο ενημερώθηκε', 'success'); }
+      else { await adminCreateShowtime(payload); showToast('Το ωράριο δημιουργήθηκε', 'success'); }
       setModal(false);
       load();
     } catch (e) {
-      Alert.alert('Σφάλμα', e.message);
+      showToast(e.message, 'error');
     } finally {
       setSaving(false);
     }
   }
 
   async function generateSeats() {
+    const vip      = parseInt(seatsForm.vipCount,      10) || 0;
+    const standard = parseInt(seatsForm.standardCount, 10) || 0;
+    const balcony  = parseInt(seatsForm.balconyCount,  10) || 0;
+    const total    = vip + standard + balcony;
+    if (total === 0)       return showToast('Βάλε τουλάχιστον 1 θέση.', 'error');
+    if (total > MAX_SEATS) return showToast(`Μέγιστο όριο ${MAX_SEATS} θέσεων. Τώρα: ${total}`, 'error');
     setSaving(true);
     try {
-      const payload = {
-        rows: parseInt(seatsForm.rows, 10),
-        seatsPerRow: parseInt(seatsForm.seatsPerRow, 10),
-        vipRows: seatsForm.vipRows,
-        balconyRows: seatsForm.balconyRows,
-      };
-      const result = await adminGenerateSeats(selectedSt.showtime_id, payload);
-      Alert.alert('Επιτυχία', `Δημιουργήθηκαν ${result.created} θέσεις`);
+      const result = await adminGenerateSeats(selectedSt.showtime_id, { vipCount: vip, standardCount: standard, balconyCount: balcony });
+      showToast(`Δημιουργήθηκαν ${result.created} θέσεις`, 'success');
       setSeatsModal(false);
       load();
     } catch (e) {
-      Alert.alert('Σφάλμα', e.message);
+      showToast(e.message, 'error');
     } finally {
       setSaving(false);
     }
   }
 
   function confirmDelete(item) {
-    Alert.alert('Διαγραφή', 'Διαγραφή ωραρίου;', [
-      { text: 'Ακύρωση', style: 'cancel' },
-      {
-        text: 'Διαγραφή', style: 'destructive',
-        onPress: async () => {
-          try { await adminDeleteShowtime(item.showtime_id); load(); }
-          catch (e) { Alert.alert('Σφάλμα', e.message); }
-        },
+    showConfirm({
+      title: 'Διαγραφή Ωραρίου',
+      message: 'Θέλεις σίγουρα να διαγράψεις αυτό το ωράριο;',
+      confirmText: 'Διαγραφή',
+      isDestructive: true,
+      onConfirm: async () => {
+        closeConfirm();
+        try { await adminDeleteShowtime(item.showtime_id); showToast('Το ωράριο διαγράφηκε', 'success'); load(); }
+        catch (e) { showToast(e.message, 'error'); }
       },
-    ]);
+    });
   }
 
   function formatDate(dt) {
@@ -124,6 +133,7 @@ export default function AdminShowtimesScreen() {
         ? <ActivityIndicator color="#ffd700" size="large" style={{ marginTop: 40 }} />
         : (
           <FlatList
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
             data={showtimes}
             keyExtractor={i => String(i.showtime_id)}
             contentContainerStyle={{ padding: 16 }}
@@ -204,27 +214,52 @@ export default function AdminShowtimesScreen() {
         <View style={styles.overlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Δημιουργία Θέσεων</Text>
-            <Text style={styles.fieldLabel}>Για: {selectedSt?.show_title}</Text>
+            <Text style={styles.fieldLabel}>Παράσταση: {selectedSt?.show_title}</Text>
 
+            {(() => {
+              const vip      = parseInt(seatsForm.vipCount,      10) || 0;
+              const standard = parseInt(seatsForm.standardCount, 10) || 0;
+              const balcony  = parseInt(seatsForm.balconyCount,  10) || 0;
+              const total    = vip + standard + balcony;
+              const over     = total > MAX_SEATS;
+              return (
+                <View style={[styles.counter, over && styles.counterOver]}>
+                  <Text style={[styles.counterTotal, over && styles.counterTotalOver]}>
+                    {total} / {MAX_SEATS} θέσεις
+                  </Text>
+                  <View style={styles.counterBar}>
+                    <View style={[styles.counterFill, { flex: vip,      backgroundColor: '#ffd700' }]} />
+                    <View style={[styles.counterFill, { flex: standard, backgroundColor: '#0066cc' }]} />
+                    <View style={[styles.counterFill, { flex: balcony,  backgroundColor: '#22aa22' }]} />
+                    <View style={[styles.counterFill, { flex: Math.max(0, MAX_SEATS - total), backgroundColor: '#1a3a6b' }]} />
+                  </View>
+                  <View style={styles.counterLegend}>
+                    <Text style={styles.legendVip}>■ VIP {vip}</Text>
+                    <Text style={styles.legendStd}>■ Standard {standard}</Text>
+                    <Text style={styles.legendBal}>■ Balcony {balcony}</Text>
+                  </View>
+                </View>
+              );
+            })()}
+
+            <Text style={styles.fieldLabel}>🟡 VIP θέσεις</Text>
             <TextInput
-              style={styles.input} placeholder="Αριθμός σειρών" placeholderTextColor="#888"
-              keyboardType="numeric" value={seatsForm.rows}
-              onChangeText={v => setSeatsForm(f => ({ ...f, rows: v }))}
+              style={styles.input} placeholder="π.χ. 10" placeholderTextColor="#888"
+              keyboardType="numeric" value={seatsForm.vipCount}
+              onChangeText={v => setSeatsForm(f => ({ ...f, vipCount: v }))}
             />
+            <Text style={styles.fieldLabel}>🔵 Standard θέσεις</Text>
             <TextInput
-              style={styles.input} placeholder="Θέσεις ανά σειρά" placeholderTextColor="#888"
-              keyboardType="numeric" value={seatsForm.seatsPerRow}
-              onChangeText={v => setSeatsForm(f => ({ ...f, seatsPerRow: v }))}
+              style={styles.input} placeholder="π.χ. 60" placeholderTextColor="#888"
+              keyboardType="numeric" value={seatsForm.standardCount}
+              onChangeText={v => setSeatsForm(f => ({ ...f, standardCount: v }))}
             />
+            <Text style={styles.fieldLabel}>🟢 Balcony θέσεις</Text>
             <TextInput
-              style={styles.input} placeholder="VIP σειρές (π.χ. AB)" placeholderTextColor="#888"
-              value={seatsForm.vipRows} onChangeText={v => setSeatsForm(f => ({ ...f, vipRows: v }))}
+              style={styles.input} placeholder="π.χ. 10" placeholderTextColor="#888"
+              keyboardType="numeric" value={seatsForm.balconyCount}
+              onChangeText={v => setSeatsForm(f => ({ ...f, balconyCount: v }))}
             />
-            <TextInput
-              style={styles.input} placeholder="Μπαλκόνι σειρές (π.χ. D)" placeholderTextColor="#888"
-              value={seatsForm.balconyRows} onChangeText={v => setSeatsForm(f => ({ ...f, balconyRows: v }))}
-            />
-            <Text style={styles.hint}>Υπόλοιπες σειρές → standard</Text>
 
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setSeatsModal(false)}>
@@ -237,6 +272,17 @@ export default function AdminShowtimesScreen() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        isDestructive={confirm.isDestructive}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
+      />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </View>
   );
 }
@@ -268,7 +314,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d1f3c', color: '#fff', borderRadius: 8, padding: 12,
     borderWidth: 1, borderColor: '#2a4a8b', marginBottom: 12, fontSize: 14,
   },
-  hint:         { color: '#888', fontSize: 12, marginBottom: 12 },
+  counter:        { backgroundColor: '#0d1f3c', borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#2a4a8b' },
+  counterOver:    { borderColor: '#e74c3c' },
+  counterTotal:   { color: '#fff', fontWeight: 'bold', fontSize: 15, marginBottom: 8, textAlign: 'center' },
+  counterTotalOver: { color: '#e74c3c' },
+  counterBar:     { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 8 },
+  counterFill:    { minWidth: 0 },
+  counterLegend:  { flexDirection: 'row', justifyContent: 'space-between' },
+  legendVip:      { color: '#ffd700', fontSize: 11, fontWeight: '600' },
+  legendStd:      { color: '#5599ff', fontSize: 11, fontWeight: '600' },
+  legendBal:      { color: '#22aa22', fontSize: 11, fontWeight: '600' },
   modalBtns:    { flexDirection: 'row', gap: 10, marginTop: 4 },
   cancelBtn:    { flex: 1, backgroundColor: '#333', borderRadius: 8, padding: 12, alignItems: 'center' },
   cancelBtnText:{ color: '#fff' },

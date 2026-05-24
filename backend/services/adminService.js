@@ -93,20 +93,33 @@ async function deleteShowtime(id) {
   await pool.query('DELETE FROM showtimes WHERE showtime_id = ?', [id]);
 }
 
-async function generateSeats(showtime_id, rows, seatsPerRow, vipRows, balconyRows) {
-  const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.slice(0, rows).split('');
-  const vipSet = new Set((vipRows || '').toUpperCase().split('').filter(Boolean));
-  const balconySet = new Set((balconyRows || '').toUpperCase().split('').filter(Boolean));
+const MAX_SEATS = 100;
+const SEATS_PER_ROW = 10;
 
+async function generateSeats(showtime_id, vipCount, standardCount, balconyCount) {
+  const total = vipCount + standardCount + balconyCount;
+  if (total === 0) throw new Error('Βάλε τουλάχιστον 1 θέση.');
+  if (total > MAX_SEATS) throw new Error(`Μέγιστο όριο ${MAX_SEATS} θέσεων.`);
+
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const values = [];
-  for (const label of rowLabels) {
-    let category = 'standard';
-    if (vipSet.has(label)) category = 'vip';
-    else if (balconySet.has(label)) category = 'balcony';
-    for (let n = 1; n <= seatsPerRow; n++) {
-      values.push([showtime_id, label, n, category]);
+  let rowIndex = 0;
+
+  function addSeats(count, category) {
+    let remaining = count;
+    while (remaining > 0) {
+      const inThisRow = Math.min(remaining, SEATS_PER_ROW);
+      const label = ALPHABET[rowIndex++];
+      for (let n = 1; n <= inThisRow; n++) {
+        values.push([showtime_id, label, n, category]);
+      }
+      remaining -= inThisRow;
     }
   }
+
+  addSeats(vipCount,      'vip');
+  addSeats(standardCount, 'standard');
+  addSeats(balconyCount,  'balcony');
 
   await pool.query('DELETE FROM seats WHERE showtime_id = ?', [showtime_id]);
   if (values.length > 0) {

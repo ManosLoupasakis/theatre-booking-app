@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { adminGetStats } from '../services/api';
+import { Toast, useToast } from '../components/Feedback';
 
 const CARDS = [
   { key: 'theatres',    label: 'Θέατρα',      icon: '🏛️',  screen: 'AdminTheatres' },
@@ -16,41 +18,53 @@ const CARDS = [
 export default function AdminDashboardScreen({ navigation }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
 
-  useEffect(() => {
+  const loadStats = useCallback(() => {
+    setLoading(true);
     adminGetStats()
       .then(setStats)
-      .catch(e => Alert.alert('Σφάλμα', e.message))
-      .finally(() => setLoading(false));
+      .catch(e => showToast(e.message, 'error'))
+      .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Πίνακας Ελέγχου</Text>
+  useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
-      ) : (
-        <View style={styles.grid}>
-          {CARDS.map(card => (
-            <TouchableOpacity
-              key={card.key}
-              style={styles.card}
-              onPress={() => navigation.navigate(card.screen)}
-            >
-              <Text style={styles.icon}>{card.icon}</Text>
-              <Text style={styles.count}>{stats?.[card.key] ?? '–'}</Text>
-              <Text style={styles.label}>{card.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+  const onRefresh = useCallback(() => { setRefreshing(true); loadStats(); }, [loadStats]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0d1f3c' }}>
+      <ScrollView
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
+        contentContainerStyle={styles.content}
+      >
+        <Text style={styles.title}>Πίνακας Ελέγχου</Text>
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
+        ) : (
+          <View style={styles.grid}>
+            {CARDS.map(card => (
+              <TouchableOpacity
+                key={card.key}
+                style={styles.card}
+                onPress={() => navigation.navigate(card.screen)}
+              >
+                <Text style={styles.icon}>{card.icon}</Text>
+                <Text style={styles.count}>{stats?.[card.key] ?? '–'}</Text>
+                <Text style={styles.label}>{card.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d1f3c' },
   content:   { padding: 16, paddingBottom: 40 },
   title:     { color: '#ffd700', fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 },
   grid:      { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },

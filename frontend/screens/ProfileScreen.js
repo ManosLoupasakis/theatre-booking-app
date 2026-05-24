@@ -1,35 +1,57 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ImageBackground } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, ImageBackground, RefreshControl } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { getMyReservations, cancelReservation, logout } from '../services/api';
+import { Toast, useToast, ConfirmModal, useConfirm } from '../components/Feedback';
 
 export default function ProfileScreen({ user, onLogout }) {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [confirmId, setConfirmId] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
+  const { confirm, showConfirm, closeConfirm } = useConfirm();
 
   const fetchReservations = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await getMyReservations();
       setReservations(data);
     } catch (err) {
-      Alert.alert('Σφάλμα', err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { fetchReservations(); }, [fetchReservations]);
-
-  async function handleCancel(id) {
-    try {
-      await cancelReservation(id);
-      setConfirmId(null);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
       fetchReservations();
-    } catch (err) {
-      setConfirmId(null);
-      Alert.alert('Σφάλμα', err.message);
-    }
+    }, [fetchReservations])
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchReservations();
+  }, [fetchReservations]);
+
+  function requestCancel(item) {
+    showConfirm({
+      title: 'Ακύρωση Κράτησης',
+      message: `Θέλεις σίγουρα να ακυρώσεις την κράτησή σου για "${item.show_title}";`,
+      confirmText: 'Ακύρωση',
+      isDestructive: true,
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await cancelReservation(item.reservation_id);
+          showToast('Η κράτηση ακυρώθηκε επιτυχώς', 'success');
+          fetchReservations();
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      },
+    });
   }
 
   async function handleLogout() {
@@ -42,7 +64,7 @@ export default function ProfileScreen({ user, onLogout }) {
   }
 
   const renderItem = ({ item }) => {
-    const isFuture = new Date(item.datetime) > new Date();
+    const isPast = new Date(item.datetime) <= new Date();
     return (
       <View style={[styles.card, item.status === 'cancelled' && styles.cardCancelled]}>
         <Text style={styles.showTitle}>{item.show_title}</Text>
@@ -51,26 +73,17 @@ export default function ProfileScreen({ user, onLogout }) {
         <Text style={styles.info}>💺 {item.seats || '—'}</Text>
         <Text style={styles.info}>💶 €{parseFloat(item.price).toFixed(2)} / θέση</Text>
         <View style={styles.statusRow}>
-          <View style={[styles.badge, item.status === 'cancelled' ? styles.badgeCancelled : styles.badgeConfirmed]}>
-            <Text style={styles.badgeText}>{item.status === 'confirmed' ? 'Επιβεβαιωμένη' : 'Ακυρωμένη'}</Text>
+          <View style={[styles.badge, item.status === 'cancelled' ? styles.badgeCancelled : isPast ? styles.badgePast : styles.badgeConfirmed]}>
+            <Text style={styles.badgeText}>
+              {item.status === 'cancelled' ? 'Ακυρωμένη' : isPast ? 'Ολοκληρωμένη' : 'Επιβεβαιωμένη'}
+            </Text>
           </View>
-          {item.status === 'confirmed' && isFuture && confirmId !== item.reservation_id && (
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmId(item.reservation_id)}>
+          {item.status === 'confirmed' && !isPast && (
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => requestCancel(item)}>
               <Text style={styles.cancelBtnText}>Ακύρωση</Text>
             </TouchableOpacity>
           )}
         </View>
-        {confirmId === item.reservation_id && (
-          <View style={styles.confirmRow}>
-            <Text style={styles.confirmText}>Είσαι σίγουρος;</Text>
-            <TouchableOpacity style={styles.confirmYes} onPress={() => handleCancel(item.reservation_id)}>
-              <Text style={styles.confirmYesText}>Ναι, ακύρωση</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.confirmNo} onPress={() => setConfirmId(null)}>
-              <Text style={styles.confirmNoText}>Όχι</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
     );
   };
@@ -104,9 +117,23 @@ export default function ProfileScreen({ user, onLogout }) {
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={<Text style={styles.empty}>Δεν έχεις κρατήσεις ακόμα.</Text>}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />
+            }
           />
         )}
       </View>
+
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        isDestructive={confirm.isDestructive}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
+      />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </ImageBackground>
   );
 }
@@ -130,14 +157,9 @@ const styles = StyleSheet.create({
   badge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
   badgeConfirmed: { backgroundColor: '#2d5016' },
   badgeCancelled: { backgroundColor: '#5d2e3d' },
+  badgePast:      { backgroundColor: '#3a3a3a' },
   badgeText: { fontSize: 12, fontWeight: '600', color: '#fff' },
   cancelBtn: { backgroundColor: '#5d2e3d', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   cancelBtnText: { color: '#ff8a8a', fontWeight: '600', fontSize: 13 },
-  confirmRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
-  confirmText: { fontSize: 13, color: '#c5c5c5', flex: 1 },
-  confirmYes: { backgroundColor: '#c62828', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  confirmYesText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  confirmNo: { backgroundColor: '#444', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  confirmNoText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   empty: { textAlign: 'center', marginTop: 60, fontSize: 16, color: '#fff' },
 });

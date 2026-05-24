@@ -1,25 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ImageBackground } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, StyleSheet, ActivityIndicator, ImageBackground } from 'react-native';
 import { getShowtimes } from '../services/api';
+import { Toast, useToast } from '../components/Feedback';
 
 export default function ShowtimesScreen({ route, navigation }) {
   const { show } = route.params;
   const [showtimes, setShowtimes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
 
-  useEffect(() => {
-    async function fetch() {
-      try {
-        const data = await getShowtimes(show.show_id);
-        setShowtimes(data);
-      } catch (err) {
-        Alert.alert('Σφάλμα', err.message);
-      } finally {
-        setLoading(false);
-      }
+  const fetchShowtimes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getShowtimes(show.show_id);
+      setShowtimes(data);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    fetch();
   }, [show.show_id]);
+
+  useFocusEffect(useCallback(() => { fetchShowtimes(); }, [fetchShowtimes]));
+
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchShowtimes(); }, [fetchShowtimes]);
 
   function formatDate(dt) {
     const d = new Date(dt);
@@ -50,6 +57,7 @@ export default function ShowtimesScreen({ route, navigation }) {
           <ActivityIndicator size="large" color="#ffd700" style={{ marginTop: 40 }} />
         ) : (
           <FlatList
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
             data={showtimes}
             keyExtractor={item => String(item.showtime_id)}
             renderItem={renderItem}
@@ -57,6 +65,7 @@ export default function ShowtimesScreen({ route, navigation }) {
             ListEmptyComponent={<Text style={styles.empty}>Δεν υπάρχουν διαθέσιμες ώρες.</Text>}
           />
         )}
+        <Toast visible={toast.visible} message={toast.message} type={toast.type} />
       </View>
     </ImageBackground>
   );

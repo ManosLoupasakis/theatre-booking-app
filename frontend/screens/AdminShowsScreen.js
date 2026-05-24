@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator, ScrollView,
+  View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity,
+  Modal, TextInput, ActivityIndicator, ScrollView,
 } from 'react-native';
 import {
   adminGetShows, adminCreateShow, adminUpdateShow, adminDeleteShow, adminGetTheatres,
 } from '../services/api';
+import { Toast, useToast, ConfirmModal, useConfirm } from '../components/Feedback';
 
 const EMPTY = { theatre_id: '', title: '', description: '', duration: '', age_rating: 'All' };
 
@@ -17,16 +19,21 @@ export default function AdminShowsScreen() {
   const [editing, setEditing]   = useState(null);
   const [form, setForm]         = useState(EMPTY);
   const [saving, setSaving]     = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast } = useToast();
+  const { confirm, showConfirm, closeConfirm } = useConfirm();
 
   const load = useCallback(() => {
     setLoading(true);
     Promise.all([adminGetShows(), adminGetTheatres()])
       .then(([s, t]) => { setShows(s); setTheatres(t); })
-      .catch(e => Alert.alert('Σφάλμα', e.message))
-      .finally(() => setLoading(false));
+      .catch(e => showToast(e.message, 'error'))
+      .finally(() => { setLoading(false); setRefreshing(false); });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
 
   function openAdd() {
     setEditing(null);
@@ -48,34 +55,35 @@ export default function AdminShowsScreen() {
 
   async function save() {
     if (!form.theatre_id || !form.title.trim() || !form.duration) {
-      Alert.alert('Σφάλμα', 'Θέατρο, τίτλος και διάρκεια είναι υποχρεωτικά');
+      showToast('Θέατρο, τίτλος και διάρκεια είναι υποχρεωτικά', 'error');
       return;
     }
     setSaving(true);
     try {
       const payload = { ...form, duration: parseInt(form.duration, 10) };
-      if (editing) await adminUpdateShow(editing.show_id, payload);
-      else await adminCreateShow(payload);
+      if (editing) { await adminUpdateShow(editing.show_id, payload); showToast('Η παράσταση ενημερώθηκε', 'success'); }
+      else { await adminCreateShow(payload); showToast('Η παράσταση δημιουργήθηκε', 'success'); }
       setModal(false);
       load();
     } catch (e) {
-      Alert.alert('Σφάλμα', e.message);
+      showToast(e.message, 'error');
     } finally {
       setSaving(false);
     }
   }
 
   function confirmDelete(item) {
-    Alert.alert('Διαγραφή', `Διαγραφή "${item.title}";`, [
-      { text: 'Ακύρωση', style: 'cancel' },
-      {
-        text: 'Διαγραφή', style: 'destructive',
-        onPress: async () => {
-          try { await adminDeleteShow(item.show_id); load(); }
-          catch (e) { Alert.alert('Σφάλμα', e.message); }
-        },
+    showConfirm({
+      title: 'Διαγραφή Παράστασης',
+      message: `Θέλεις σίγουρα να διαγράψεις "${item.title}";`,
+      confirmText: 'Διαγραφή',
+      isDestructive: true,
+      onConfirm: async () => {
+        closeConfirm();
+        try { await adminDeleteShow(item.show_id); showToast('Η παράσταση διαγράφηκε', 'success'); load(); }
+        catch (e) { showToast(e.message, 'error'); }
       },
-    ]);
+    });
   }
 
   return (
@@ -88,6 +96,7 @@ export default function AdminShowsScreen() {
         ? <ActivityIndicator color="#ffd700" size="large" style={{ marginTop: 40 }} />
         : (
           <FlatList
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" colors={['#ffd700']} />}
             data={shows}
             keyExtractor={i => String(i.show_id)}
             contentContainerStyle={{ padding: 16 }}
@@ -161,6 +170,17 @@ export default function AdminShowsScreen() {
           </View>
         </ScrollView>
       </Modal>
+
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        isDestructive={confirm.isDestructive}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
+      />
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </View>
   );
 }

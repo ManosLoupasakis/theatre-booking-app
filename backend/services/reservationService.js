@@ -57,13 +57,20 @@ async function getUserReservations(userId) {
 
 async function cancelReservation(reservationId, userId, isAdmin = false) {
   const query = isAdmin
-    ? 'SELECT * FROM reservations WHERE reservation_id = ?'
-    : 'SELECT * FROM reservations WHERE reservation_id = ? AND user_id = ?';
+    ? `SELECT r.*, st.datetime FROM reservations r
+       JOIN showtimes st ON r.showtime_id = st.showtime_id
+       WHERE r.reservation_id = ?`
+    : `SELECT r.*, st.datetime FROM reservations r
+       JOIN showtimes st ON r.showtime_id = st.showtime_id
+       WHERE r.reservation_id = ? AND r.user_id = ?`;
   const params = isAdmin ? [reservationId] : [reservationId, userId];
 
   const [rows] = await pool.query(query, params);
   if (rows.length === 0) throw new Error('Reservation not found');
-  if (rows[0].status === 'cancelled') throw new Error('Already cancelled');
+  if (rows[0].status === 'cancelled') throw new Error('Η κράτηση είναι ήδη ακυρωμένη');
+  if (!isAdmin && new Date(rows[0].datetime) <= new Date()) {
+    throw new Error('Δεν μπορείς να ακυρώσεις παράσταση που έχει ήδη περάσει');
+  }
 
   await pool.query(
     "UPDATE reservations SET status = 'cancelled' WHERE reservation_id = ?",
